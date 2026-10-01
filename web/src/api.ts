@@ -80,4 +80,8 @@ export const api = {
   },
 
   runNow: () => request<RunNowResult>("/run-now", { method: "POST" }),
+  keepalive: () =>
+    request<{ probe: "alive" | "dead" | "network-error" }>("/keepalive", {
+      method: "POST",
+    }),
 };

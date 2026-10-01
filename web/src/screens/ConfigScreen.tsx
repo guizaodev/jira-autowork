@@ -147,7 +147,16 @@ export function ConfigScreen() {
       </Card>
       <Card title="Sessão Jira">
         <div className="space-y-3">
-          <Button variant="neutral" onClick={() => void session.reload()} disabled={session.loading}>
+          <Button
+            variant="neutral"
+            onClick={() =>
+              void api
+                .keepalive()
+                .catch(() => undefined)
+                .finally(() => void session.reload())
+            }
+            disabled={session.loading}
+          >
             {session.loading ? "Verificando…" : "Atualizar sessão"}
           </Button>
           {session.loading ? <Spinner /> : null}
