@@ -1,0 +1,23 @@
+services:
+  jira-autowork:
+    build: .
+    image: jira-autowork:latest
+    container_name: jira-autowork
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      # Opcional: seed inicial do cookie. Sem ele, configure/renove pelo painel (Config → Cookie).
+      JIRA_COOKIE: "${JIRA_COOKIE:-}"
+      PANEL_PASSWORD: "${PANEL_PASSWORD:?defina PANEL_PASSWORD no .env ou no shell}"
+      PANEL_COOKIE_SECURE: "${PANEL_COOKIE_SECURE:-false}"
+      ALERT_WEBHOOK_URL: "${ALERT_WEBHOOK_URL:-}"
+      DATA_DIR: /data
+      TZ: America/Sao_Paulo
+    volumes:
+      - ./data:/data
+      # Container roda como não-root (uid 10001). Se ./data não for gravável:
+      #   sudo chown -R 10001:10001 ./data
+      # ou descomente para rodar com o uid do seu usuário do host:
+      # user: "1000:1000"

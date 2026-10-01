@@ -1,0 +1,24 @@
+{
+  "name": "DevContainer Bun (Isolado)",
+  "workspaceFolder": "/workspaces/jira-autowork",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges",
+    "--network=bridge",
+    "--name=jira-autowork-devcontainer"
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.config/opencode,target=/home/vscode/.config/opencode,type=bind,readonly"
+  ],
+  "remoteUser": "vscode",
+  "containerUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": ["oven.bun-vscode"]
+    }
+  },
+  "postCreateCommand": "bun --version"
+}
