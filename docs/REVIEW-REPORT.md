@@ -53,9 +53,10 @@ Nenhum. Os P0s originais (servidor Elysia ausente) foram resolvidos: `src/server
 
 ## P2 — Recomendado
 
-### P2-1. Bypass de auth impreciso
-- **Onde:** `src/server/routes.ts:31`
-- `path.endsWith("/healthz")` é dead code (healthz registrado fora do prefixo `/api`, em `src/server/index.ts:53`); `endsWith("/login")` casaria um futuro `/x/login`. Usar match exato (`path === "/api/login"`).
+### P2-1. Bypass de auth impreciso — ✅ RESOLVIDO
+- **Onde:** `src/server/routes.ts:34-35`
+- `path.endsWith("/healthz")` era dead code; `endsWith("/login")` casaria um futuro `/x/login`. Usar match exato (`path === "/api/login"`).
+- **Resolução:** match exato `path === "/api/login"`; dead code removido.
 
 ### P2-2. Comparação de senha não constant-time — ✅ RESOLVIDO
 - **Onde:** `src/server/routes.ts:46,204-208` (`timingSafeEqualStr`)
@@ -131,6 +132,6 @@ Nenhum. Os P0s originais (servidor Elysia ausente) foram resolvidos: `src/server
 - **Estilo:** TS strict, zero `any`, exports nomeados, sem comentários em código novo (exceções: `contract.ts` pré-existente e headers Dockerfile).
 - **Painel web:** aprovado em rodada 2 (LGTM) — loop de fetch corrigido via `loaderRef`, TZ do mês default corrigida, 401 tratado.
 
-## Cobertura de testes sugerida (Sentinel)
+## Cobertura de testes sugerida (Sentinel) — ✅ COBERTA (104/104)
 
-Falha parcial de feriados (P1-3) · username vazio no applier (P1-4) · `/run-now` concorrente (P2-4) · login via HTTP com cookie secure (P1-1) · classificação/TZ/fronteira de meia-noite · mascaramento do cookie · auth das rotas.
+Falha parcial de feriados (P1-3) · username vazio no applier (P1-4) · `/run-now` concorrente (P2-4) · login via HTTP com cookie secure (P1-1) · classificação/TZ/fronteira de meia-noite · mascaramento do cookie · auth das rotas — itens agora cobertos pela suite (104 testes, 8 arquivos).
