@@ -23,7 +23,7 @@ bun run dev
 bun run dev:web
 ```
 
-Scripts: `dev` (backend watch) · `dev:web` (painel) · `build` (builda `web/` com vite) · `typecheck` · `test` (`bun test`).
+Scripts: `dev` (backend watch) · `dev:web` (painel) · `build` (builda `web/` com vite) · `build:server` (bundle standalone do servidor em `dist-server/`) · `build:all` (os dois) · `typecheck` · `test` (`bun test`).
 
 Variáveis de ambiente em dev (opcional, pode exportar ou usar `.env` — nunca comitar):
 
@@ -35,13 +35,14 @@ Variáveis de ambiente em dev (opcional, pode exportar ou usar `.env` — nunca 
 | `ALERT_WEBHOOK_URL` | Webhook para alertas (Slack/Discord/etc) |
 | `PORT` | Porta do servidor (default `3000`) |
 | `DATA_DIR` | Diretório do SQLite (dev: `./data`, Docker: `/data`) |
+| `WEB_DIST_DIR` | Diretório do painel compilado (default: `./web/dist` relativo ao cwd) |
 
 Em dev o banco fica em `./data/dev.db` (crie `data/` ou deixe o app criar). Configure tasks do mês, feriado/férias e o cookie pelo painel em `http://localhost:5173` (login com `PANEL_PASSWORD`).
 
 ## Deploy (Docker)
 
 ```bash
-# 1. Build da imagem (multi-stage: builda web/ e roda com deps de prod)
+# 1. Build da imagem (multi-stage: bundle do servidor + painel, runtime slim sem node_modules)
 docker build -t jira-autowork .
 
 # 2. Rodar
@@ -75,8 +76,14 @@ PANEL_COOKIE_SECURE=false
 
 ### O que a imagem faz
 
-- Stage 1 (`oven/bun:1`): instala deps do `web/` (lock próprio) e builda o painel com vite
-- Stage 2 (`oven/bun:1`): copia `src/` + `web/dist` + `node_modules` de produção, `TZ=America/Sao_Paulo`, `VOLUME /data`, `EXPOSE 3000`, healthcheck em `/healthz` (via `bun -e fetch`, sem curl), roda como usuário **não-root** (`app`, uid 10001), `CMD bun src/index.ts`
+Imagem de produção **mínima e sem `node_modules`**: o servidor roda como um bundle standalone.
+
+- Stage 1 (`oven/bun:1`): instala deps do `web/` (lock próprio, cache de layer) e builda o painel com vite
+- Stage 2 (`oven/bun:1`): copia `package.json` + `bun.lock` primeiro (cache de `bun install --frozen-lockfile`), depois `src/`, e gera o bundle `dist-server/index.js` com `bun build --target=bun --minify` — elysia + zod ficam embutidos (~460 KB); `bun:sqlite` é nativo do runtime Bun e não é afetado pelo bundle
+- Stage 3 (`oven/bun:1-slim`): runtime final copia **apenas** `dist-server/index.js` + `web/dist`, `TZ=America/Sao_Paulo`, `VOLUME /data`, `EXPOSE 3000`, healthcheck em `/healthz` (via `bun -e fetch`, sem curl), roda como usuário **não-root** (`app`, uid 10001), `CMD bun dist-server/index.js`
+
+Build local equivalente: `bun run build:all` (=`build` do vite + `build:server` do bundle). O caminho do painel é resolvido via env `WEB_DIST_DIR` (na imagem: `/app/web/dist`) e o SQLite via `DATA_DIR` (`/data`), então o bundle funciona a partir de qualquer cwd.
+
 - Scheduler roda às **09:05** (America/Sao_Paulo) + keepalive a cada 20min + backfill de 14 dias
 
 > **Permissão do `/data`:** com bind mount (`./data:/data`), o diretório do host precisa ser gravável pelo uid do container: `sudo chown -R 10001:10001 ./data` (ou rode o container com `user: "1000:1000"` no compose para casar com seu usuário do host). Volumes nomeados herdam o dono correto automaticamente.

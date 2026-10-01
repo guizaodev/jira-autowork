@@ -9,6 +9,8 @@ import { createApp } from "./server";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const PASSWORD = process.env.PANEL_PASSWORD ?? "";
+const WEB_DIST_DIR =
+  process.env.WEB_DIST_DIR ?? path.join(process.cwd(), "web", "dist");
 
 if (!PASSWORD && process.env.NODE_ENV === "production") {
   console.error("PANEL_PASSWORD é obrigatória em produção (NODE_ENV=production)");
@@ -29,7 +31,7 @@ const app = createApp({
   alerter,
   jira,
   password: EFFECTIVE_PASSWORD,
-  webDistDir: path.join(process.cwd(), "web", "dist"),
+  webDistDir: WEB_DIST_DIR,
 });
 
 scheduler.start();

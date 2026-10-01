@@ -7,6 +7,8 @@
     "dev": "bun run --watch src/index.ts",
     "dev:web": "bun run --cwd web dev",
     "build": "bun run --cwd web build",
+    "build:server": "bun build src/index.ts --target=bun --outdir=dist-server --minify",
+    "build:all": "bun run build && bun run build:server",
     "start": "NODE_ENV=production bun src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
