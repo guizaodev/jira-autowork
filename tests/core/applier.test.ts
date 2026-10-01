@@ -344,20 +344,39 @@ describe("applier / backfill 14 dias", () => {
   });
 });
 
-describe("applier / fallback de mês", () => {
-  test("APP-06 mês sem mapping usa o anterior mais recente + warn 1x", async () => {
+describe("applier / task do mês obrigatória", () => {
+  test("APP-06 mês sem mapping → não aponta (sem fallback) + alerta", async () => {
     const ctx = setup({ monthlyTasks: [["2026-08", "ITAUADQUIR-800"]] });
     try {
       const result = await ctx.applier.runNow();
       const today = result.days.find((d) => d.date === "2026-09-30");
-      expect(today?.action).toBe("logged");
-      expect(today?.issueKey).toBe("ITAUADQUIR-800");
-      const warnLogs = ctx.db
-        .listLogs(50, "warn")
+      expect(today?.action).toBe("skipped");
+      expect(today?.detail).toContain("task do mês não cadastrada");
+      expect(ctx.jira.worklogs).toHaveLength(0);
+      const alerts = ctx.alerts.filter((a) =>
+        a.includes("task do mês não cadastrada"),
+      );
+      expect(alerts).toHaveLength(1);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("mês com mapping usa a task exata, sem fallback do anterior", async () => {
+    const ctx = setup({
+      monthlyTasks: [
+        ["2026-08", "ITAUADQUIR-800"],
+        ["2026-09", "ITAUADQUIR-901"],
+      ],
+    });
+    try {
+      const result = await ctx.applier.runNow();
+      const today = result.days.find((d) => d.date === "2026-09-30");
+      expect(today?.issueKey).toBe("ITAUADQUIR-901");
+      const fallbackWarns = ctx.db
+        .listLogs(100, "warn")
         .filter((l) => l.message.includes("fallback"));
-      expect(warnLogs.length).toBeGreaterThan(0);
-      const fallbackAlerts = ctx.alerts.filter((a) => a.includes("fallback"));
-      expect(fallbackAlerts).toHaveLength(1);
+      expect(fallbackWarns).toHaveLength(0);
     } finally {
       ctx.cleanup();
     }
@@ -374,7 +393,59 @@ describe("applier / fallback de mês", () => {
       }
       expect(ctx.jira.worklogs).toHaveLength(0);
       const noMappingAlerts = ctx.alerts.filter((a) =>
-        a.includes("nenhuma monthly task"),
+        a.includes("task do mês não cadastrada"),
+      );
+      expect(noMappingAlerts).toHaveLength(1);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("alerta no-mapping é 1x/dia: 2 execuções no mesmo dia → 1 alerta", async () => {
+    const ctx = setup({ monthlyTasks: [["2026-08", "ITAUADQUIR-800"]] });
+    try {
+      await ctx.applier.runNow();
+      await ctx.applier.runNow();
+      const noMappingAlerts = ctx.alerts.filter((a) =>
+        a.includes("task do mês não cadastrada"),
+      );
+      expect(noMappingAlerts).toHaveLength(1);
+      const worklogs = ctx.jira.worklogs.filter((w) =>
+        w.started.startsWith("2026-09"),
+      );
+      expect(worklogs).toHaveLength(0);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("backfill em virada de mês: dias do mês anterior sem mapping não são apontados", async () => {
+    const ctx = setup({
+      now: new Date("2026-10-01T12:00:00Z"),
+      monthlyTasks: [["2026-10", "ITAUADQUIR-1001"]],
+    });
+    try {
+      const result = await ctx.applier.runNow();
+      const sepDays = result.days.filter((d) => d.date.startsWith("2026-09"));
+      expect(sepDays.length).toBeGreaterThan(0);
+      for (const day of sepDays.filter((d) => d.dayKind === "workday")) {
+        expect(day.action).toBe("skipped");
+        expect(day.detail).toContain("task do mês não cadastrada");
+      }
+      const octDays = result.days.filter(
+        (d) => d.date.startsWith("2026-10") && d.dayKind === "workday",
+      );
+      expect(octDays.length).toBeGreaterThan(0);
+      for (const day of octDays) {
+        expect(day.action).toBe("logged");
+        expect(day.issueKey).toBe("ITAUADQUIR-1001");
+      }
+
+      expect(
+        ctx.jira.worklogs.some((w) => w.started.startsWith("2026-09")),
+      ).toBe(false);
+      const noMappingAlerts = ctx.alerts.filter((a) =>
+        a.includes("task do mês não cadastrada"),
       );
       expect(noMappingAlerts).toHaveLength(1);
     } finally {

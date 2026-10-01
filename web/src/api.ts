@@ -3,6 +3,7 @@ import type {
   HistoryEntry,
   LogEntry,
   MonthlyTask,
+  MonthTimesheet,
   RunNowResult,
   SessionInfo,
   VacationPeriod,
@@ -70,6 +71,8 @@ export const api = {
 
   history: (limit = 100, offset = 0) =>
     request<HistoryEntry[]>(`/history?limit=${limit}&offset=${offset}`),
+  timesheet: (month: string) =>
+    request<MonthTimesheet>(`/timesheet/${encodeURIComponent(month)}`),
   logs: (limit = 100, level?: string) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (level && level !== "all") params.set("level", level);

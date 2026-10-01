@@ -50,6 +50,12 @@ export interface LogEntry {
   createdAt: string; // ISO
 }
 
+export interface MonthTimesheet {
+  month: string; // "YYYY-MM"
+  totalSeconds: number; // soma dos apontamentos com status success
+  days: HistoryEntry[];
+}
+
 export interface RunNowResult {
   ranAt: string; // ISO
   days: Array<{
@@ -81,6 +87,7 @@ export interface RunNowResult {
 // DELETE /api/vacations/:id
 
 // GET  /api/history?limit=100&offset=0 -> HistoryEntry[]
+// GET  /api/timesheet/:month -> MonthTimesheet (dias do mês + soma de horas)
 // GET  /api/logs?limit=100&level=info|warn|error -> LogEntry[]
 
 // POST /api/run-now -> RunNowResult (executa job síncrono: hoje + backfill 14d)

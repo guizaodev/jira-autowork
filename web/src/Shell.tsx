@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "./api";
 import { MonthlyTasksScreen } from "./screens/MonthlyTasksScreen";
+import { ApontamentosScreen } from "./screens/ApontamentosScreen";
 import { ConfigScreen } from "./screens/ConfigScreen";
 import { VacationsScreen } from "./screens/VacationsScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
@@ -10,6 +11,7 @@ import type { SessionInfo } from "../../src/shared/contract";
 
 const screens = {
   tasks: { label: "Tasks do mês", render: MonthlyTasksScreen },
+  apontamentos: { label: "Apontamentos", render: ApontamentosScreen },
   config: { label: "Config", render: ConfigScreen },
   vacations: { label: "Férias", render: VacationsScreen },
   history: { label: "Histórico", render: HistoryScreen },

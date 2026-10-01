@@ -410,6 +410,167 @@ describe("server / history, logs, session e execução", () => {
   });
 });
 
+describe("server / timesheet", () => {
+  function seedHistory(ctx: AppCtx): void {
+    ctx.db.upsertHistory({
+      date: "2026-09-01",
+      dayKind: "workday",
+      issueKey: "ITAUADQUIR-901",
+      worklogId: 1,
+      timeSpentSeconds: 28800,
+      status: "success",
+      detail: "ok",
+    });
+    ctx.db.upsertHistory({
+      date: "2026-09-02",
+      dayKind: "workday",
+      issueKey: "ITAUADQUIR-901",
+      worklogId: 2,
+      timeSpentSeconds: 14400,
+      status: "success",
+      detail: "meio dia",
+    });
+    ctx.db.upsertHistory({
+      date: "2026-09-03",
+      dayKind: "workday",
+      issueKey: "",
+      worklogId: null,
+      timeSpentSeconds: 99999,
+      status: "failed",
+      detail: "falhou",
+    });
+    ctx.db.upsertHistory({
+      date: "2026-09-04",
+      dayKind: "weekend",
+      issueKey: "",
+      worklogId: null,
+      timeSpentSeconds: 99999,
+      status: "skipped",
+      detail: "fim de semana",
+    });
+  }
+
+  test("200 soma apenas status success e ordena os dias", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      seedHistory(ctx);
+
+      const response = await ctx.handle(
+        new Request(url("/api/timesheet/2026-09"), {
+          headers: { Cookie: cookie },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        month: string;
+        totalSeconds: number;
+        days: Array<{ date: string; status: string; timeSpentSeconds: number }>;
+      };
+      expect(body.month).toBe("2026-09");
+      expect(body.totalSeconds).toBe(43200);
+      expect(body.days).toHaveLength(4);
+      expect(body.days.map((d) => d.date)).toEqual([
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+        "2026-09-04",
+      ]);
+
+      const successSum = body.days
+        .filter((d) => d.status === "success")
+        .reduce((sum, d) => sum + d.timeSpentSeconds, 0);
+      expect(body.totalSeconds).toBe(successSum);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("mês sem dados → 200 com totalSeconds 0 e days vazio", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      const response = await ctx.handle(
+        new Request(url("/api/timesheet/2026-01"), {
+          headers: { Cookie: cookie },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        month: string;
+        totalSeconds: number;
+        days: unknown[];
+      };
+      expect(body.month).toBe("2026-01");
+      expect(body.totalSeconds).toBe(0);
+      expect(body.days).toHaveLength(0);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("mês inválido → 400", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      for (const month of ["2026-13", "2026-1", "202609", "2026-9x"]) {
+        const response = await ctx.handle(
+          new Request(url(`/api/timesheet/${month}`), {
+            headers: { Cookie: cookie },
+          }),
+        );
+        expect(response.status).toBe(400);
+      }
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("sem sessão → 401", async () => {
+    const ctx = setupApp();
+    try {
+      seedHistory(ctx);
+      const response = await ctx.handle(
+        new Request(url("/api/timesheet/2026-09")),
+      );
+      expect(response.status).toBe(401);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("só inclui dias do mês pedido", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      seedHistory(ctx);
+      ctx.db.upsertHistory({
+        date: "2026-10-01",
+        dayKind: "workday",
+        issueKey: "ITAUADQUIR-1001",
+        worklogId: 9,
+        timeSpentSeconds: 28800,
+        status: "success",
+        detail: "ok",
+      });
+
+      const response = await ctx.handle(
+        new Request(url("/api/timesheet/2026-09"), {
+          headers: { Cookie: cookie },
+        }),
+      );
+      const body = (await response.json()) as {
+        totalSeconds: number;
+        days: Array<{ date: string }>;
+      };
+      expect(body.totalSeconds).toBe(43200);
+      expect(body.days.every((d) => d.date.startsWith("2026-09"))).toBe(true);
+    } finally {
+      ctx.cleanup();
+    }
+  });
+});
+
 describe("server / cookie secure (P1-1)", () => {
   test("cookieSecure=false → sem flag Secure", async () => {
     const ctx = setupApp({ cookieSecure: false });

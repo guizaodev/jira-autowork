@@ -48,6 +48,10 @@ export function MonthlyTasksScreen() {
   return (
     <Card title="Tasks do mês">
       <div className="space-y-5">
+        <p className="text-sm text-slate-600">
+          Mês sem task cadastrada não aponta nada até ser cadastrada. É possível pré-definir a task
+          de meses futuros escolhendo o mês no campo acima.
+        </p>
         <form
           className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
@@ -82,7 +86,7 @@ export function MonthlyTasksScreen() {
           <Spinner />
         ) : tasks.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Nenhuma task cadastrada. Mês sem mapping usa o mapping anterior mais recente.
+            Nenhuma task cadastrada. Mês sem task não aponta nada até ser cadastrada.
           </p>
         ) : (
           <table className="w-full text-left text-sm">

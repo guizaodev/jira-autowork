@@ -62,15 +62,9 @@ export function createApplier(deps: {
     db.addLog("warn", `${date}: ${detail}`);
   };
 
-  const monthlyIssueFor = (month: string): { issueKey: string | null; fallback: boolean } => {
-    const tasks = db.listMonthlyTasks();
-    const exact = tasks.find((task) => task.month === month);
-    if (exact) return { issueKey: exact.issueKey, fallback: false };
-    const previous = tasks
-      .filter((task) => task.month < month)
-      .sort((a, b) => b.month.localeCompare(a.month))[0];
-    if (previous) return { issueKey: previous.issueKey, fallback: true };
-    return { issueKey: null, fallback: false };
+  const monthlyIssueFor = (month: string): { issueKey: string | null } => {
+    const exact = db.listMonthlyTasks().find((task) => task.month === month);
+    return { issueKey: exact?.issueKey ?? null };
   };
 
   async function usernameFor(cookie: string): Promise<string> {
@@ -257,9 +251,9 @@ export function createApplier(deps: {
       }
       return logWorkday(date, "vacation", issueKey, "férias");
     }
-    const { issueKey, fallback } = monthlyIssueFor(date.slice(0, 7));
+    const { issueKey } = monthlyIssueFor(date.slice(0, 7));
     if (!issueKey) {
-      const detail = "nenhuma monthly task configurada";
+      const detail = "task do mês não cadastrada";
       recordSkip(date, "workday", detail);
       await warnOncePerDay(
         "no-mapping",
@@ -271,15 +265,8 @@ export function createApplier(deps: {
         action: "skipped",
         issueKey: null,
         worklogId: null,
-        detail: "nenhuma monthly task configurada",
+        detail,
       };
-    }
-    if (fallback) {
-      const month = date.slice(0, 7);
-      await warnOncePerDay(
-        "fallback",
-        `${date}: sem mapping para ${month} — usando fallback ${issueKey}`,
-      );
     }
     return logWorkday(date, "workday", issueKey, "dia útil");
   }

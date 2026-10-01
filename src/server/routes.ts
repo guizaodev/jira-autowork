@@ -155,6 +155,20 @@ export function createRoutes(deps: ServerDeps) {
       { query: t.Object({ limit: t.Optional(t.String()), offset: t.Optional(t.String()) }) },
     )
     .get(
+      "/timesheet/:month",
+      ({ params, status }) => {
+        if (!monthSchema.safeParse(params.month).success) {
+          return status(400, { message: "Mês inválido (esperado YYYY-MM)" });
+        }
+        const days = db.historyForMonth(params.month);
+        const totalSeconds = days
+          .filter((day) => day.status === "success")
+          .reduce((sum, day) => sum + day.timeSpentSeconds, 0);
+        return { month: params.month, totalSeconds, days };
+      },
+      { params: t.Object({ month: t.String() }) },
+    )
+    .get(
       "/logs",
       ({ query }) => {
         const limit = clamp(Number(query.limit ?? 100), 1, 500);

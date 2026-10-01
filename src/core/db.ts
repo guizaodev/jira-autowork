@@ -79,6 +79,7 @@ export interface Db {
   addVacation(startDate: string, endDate: string, note: string): number;
   deleteVacation(id: number): boolean;
   historyByDate(date: string): HistoryEntry | null;
+  historyForMonth(month: string): HistoryEntry[];
   upsertHistory(entry: HistoryUpsert): void;
   listHistory(limit: number, offset: number): HistoryEntry[];
   addLog(level: LogEntry["level"], message: string): void;
@@ -307,6 +308,13 @@ export function createDb(dbPath: string): Db {
           entry.detail,
           nowIso(),
         );
+    },
+    historyForMonth(month: string): HistoryEntry[] {
+      return (
+        cached(
+          "SELECT id, date, day_kind, issue_key, worklog_id, time_spent_seconds, status, detail, created_at FROM history WHERE date LIKE ? ORDER BY date",
+        ).all(`${month}-%`) as HistoryRow[]
+      ).map(toHistoryEntry);
     },
     listHistory(limit: number, offset: number): HistoryEntry[] {
       return (

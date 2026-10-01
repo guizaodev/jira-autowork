@@ -1,6 +1,6 @@
 # Plano de Testes — jira-autowork
 
-Status: **implementado** — 102 testes em `tests/**`, `bun test` verde e `tsc --noEmit` limpo.
+Status: **implementado** — 117 testes em `tests/**`, `bun test` verde e `tsc --noEmit` limpo.
 Runner: `bun test`. Mock de rede via injeção de `fetch`/client (nunca rede real). DB temporário por teste (`makeTempDb`).
 Fixtures/mocks: `tests/helpers.ts` (fetch mock com captura de calls, DB temp, holiday set, Jira mock, alerter mock).
 
@@ -9,11 +9,12 @@ Fixtures/mocks: `tests/helpers.ts` (fetch mock com captura de calls, DB temp, ho
 - `tests/core/calendar.test.ts` — datas, weekend, feriados 2026 reais (07/09, 20/11, 31/08 Uberlândia), férias sobrepondo feriado/weekend, limites inclusivos.
 - `tests/core/holidays.test.ts` — parse `,`/`;`/`|`, filtros nacional/estadual-MG/municipal-IBGE/facultativo, dedupe por precedência, cache+boot, fail-open; **P1-3**: falha parcial de CSV preserva cache completo (`source:"cache"`), falha do CSV nacional idem, falha parcial sem cache → fail-open `[]` + warn, sucesso dos 4 CSVs persiste `source:"network"` + `invalidate()`.
 - `tests/core/jira.test.ts` — payload byte-exato do worklog (`comment:""`, `started` `-0300`, 28800s, `adjustEstimate=leave`, `X-Atlassian-Token: no-check`), 401/302/403 → dead, 5xx → network-error, JQL `worklogAuthor`/`worklogDate`.
-- `tests/core/applier.test.ts` — log normal, feriado/férias/fim de semana, idempotência local (UNIQUE date) e remota (JQL), backfill 14 dias, fallback de mês + warn 1x, sem mapping → alerta, falha → failed, shape do `RunNowResult`; **P1-4**: username vazio → dia `failed` ("sessão Jira inválida"), 0 POSTs e 0 JQLs, ledger `failed`; username resolvido via `getMyself` quando ausente na sessão; **meia-noite TZ**: 23:30 BRT = dia corrente, 00:30 BRT = dia seguinte, 23:59 vs 00:01 muda a data de negócio, `started` sempre `-0300`.
+- `tests/core/db.test.ts` — `historyForMonth`: mês sem dados → `[]`, filtra/ordena por mês, dados mistos (success/failed/skipped) preservam status e `timeSpentSeconds`, upsert no mesmo dia não duplica.
+- `tests/core/applier.test.ts` — log normal, feriado/férias/fim de semana, idempotência local (UNIQUE date) e remota (JQL), backfill 14 dias, **sem fallback de mês** (mês exato; sem mapping → dia útil `skipped` com detail "task do mês não cadastrada" + alerta webhook 1x/dia tipo `no-mapping`, 0 POST), mês anterior dentro da janela de backfill não é apontado, falha → failed, shape do `RunNowResult`; **P1-4**: username vazio → dia `failed` ("sessão Jira inválida"), 0 POSTs e 0 JQLs, ledger `failed`; username resolvido via `getMyself` quando ausente na sessão; **meia-noite TZ**: 23:30 BRT = dia corrente, 00:30 BRT = dia seguinte, 23:59 vs 00:01 muda a data de negócio, `started` sempre `-0300`.
 - `tests/core/scheduler.test.ts` — job 09:05 1x/dia, catch-up de boot não marca o dia (09:05 do mesmo dia ainda roda), refresh de feriados no boot e na virada de mês, keepalive, webhook alerta 1x + confirmação de retorno, network-error não alerta.
 - `tests/core/alerter.test.ts` — POST webhook, sem webhook → warn, `probeAndRecord` (alive/dead/network-error) e SessionInfo.
 - `tests/server/auth.test.ts` — issue/verify token (formato `expires.nonce.hmac`), expiração, adulteração, máscara de cookie.
-- `tests/server/routes.test.ts` — 401 sem sessão, login/logout, settings (máscara + preservação), CRUD monthly-tasks/vacations + validação, history/logs, test-connection, run-now; **P2-4**: run-now concorrente → 409 `{ message: "Execução já em andamento" }`, libera lock ao terminar e aceita nova chamada; **P1-1**: `cookieSecure=false` → sem `Secure`, `=true` → `Secure`, `auto` + `x-forwarded-proto: https` → `Secure`, `auto` HTTP puro → sem `Secure`.
+- `tests/server/routes.test.ts` — 401 sem sessão, login/logout, settings (máscara + preservação), CRUD monthly-tasks/vacations + validação, history/logs, **GET `/api/timesheet/:month`** (200 com soma de `success` apenas; failed/skipped não somam; mês vazio → 0; 400 mês inválido; 401 sem sessão; isola dias do mês), test-connection, run-now; **P2-4**: run-now concorrente → 409 `{ message: "Execução já em andamento" }`, libera lock ao terminar e aceita nova chamada; **P1-1**: `cookieSecure=false` → sem `Secure`, `=true` → `Secure`, `auto` + `x-forwarded-proto: https` → `Secure`, `auto` HTTP puro → sem `Secure`.
 
 
 

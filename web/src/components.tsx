@@ -81,16 +81,21 @@ export function useAsync<T>(loader: () => Promise<T>) {
   const [error, setError] = useState<string | null>(null);
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
+  const generationRef = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++generationRef.current;
     setLoading(true);
     setError(null);
     try {
-      setData(await loaderRef.current());
+      const result = await loaderRef.current();
+      if (generation !== generationRef.current) return;
+      setData(result);
     } catch (err) {
+      if (generation !== generationRef.current) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (generation === generationRef.current) setLoading(false);
     }
   }, []);
 
