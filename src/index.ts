@@ -19,9 +19,10 @@ if (!PASSWORD && process.env.NODE_ENV === "production") {
 const EFFECTIVE_PASSWORD = PASSWORD || "dev";
 
 const db = createDb(defaultDbPath());
-const jira = createJiraClient();
-const holidays = createHolidayStore(db);
-const alerter = createAlerter({ db, jira });
+const getProxy = (): string => db.getSettings().proxyUrl;
+const jira = createJiraClient(undefined, undefined, getProxy);
+const holidays = createHolidayStore(db, undefined, undefined, getProxy);
+const alerter = createAlerter({ db, jira, getProxy });
 const applier = createApplier({ db, jira, holidays, alerter });
 const scheduler = createScheduler({ db, applier, alerter, holidays });
 

@@ -202,6 +202,70 @@ describe("server / settings", () => {
       ctx.cleanup();
     }
   });
+
+  test("PUT settings com proxyUrl mascarado preserva o atual", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      await ctx.handle(
+        jsonRequest(
+          "PUT",
+          "/api/settings",
+          { proxyUrl: "http://user:pass@proxy.corp:8080" },
+          cookie,
+        ),
+      );
+      const masked = await ctx.handle(
+        new Request(url("/api/settings"), { headers: { Cookie: cookie } }),
+      );
+      const body = (await masked.json()) as { proxyUrl: string };
+      expect(body.proxyUrl).toBe("http://***:***@proxy.corp:8080");
+
+      await ctx.handle(
+        jsonRequest("PUT", "/api/settings", { proxyUrl: body.proxyUrl }, cookie),
+      );
+      expect(ctx.db.getSettings().proxyUrl).toBe(
+        "http://user:pass@proxy.corp:8080",
+      );
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("PUT settings com proxyUrl vazio limpa o proxy", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      await ctx.handle(
+        jsonRequest(
+          "PUT",
+          "/api/settings",
+          { proxyUrl: "http://user:pass@proxy.corp:8080" },
+          cookie,
+        ),
+      );
+      await ctx.handle(
+        jsonRequest("PUT", "/api/settings", { proxyUrl: "   " }, cookie),
+      );
+      expect(ctx.db.getSettings().proxyUrl).toBe("");
+    } finally {
+      ctx.cleanup();
+    }
+  });
+
+  test("PUT settings aceita proxy real contendo literal '***:***@' no userinfo", async () => {
+    const ctx = setupApp();
+    try {
+      const cookie = await login(ctx);
+      const legit = "http://x***:***@y@proxy.corp:8080";
+      await ctx.handle(
+        jsonRequest("PUT", "/api/settings", { proxyUrl: legit }, cookie),
+      );
+      expect(ctx.db.getSettings().proxyUrl).toBe(legit);
+    } finally {
+      ctx.cleanup();
+    }
+  });
 });
 
 describe("server / monthly tasks", () => {

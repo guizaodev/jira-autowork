@@ -70,19 +70,31 @@ function writeHeaders(cookie: string): Record<string, string> {
   };
 }
 
+export type ProxyProvider = () => string;
+
 export function createJiraClient(
   baseUrl = JIRA_BASE_URL,
   fetchFn: typeof fetch = fetch,
+  getProxy: ProxyProvider = () => "",
 ): JiraClient {
   const jqlWorklogOnDate = (date: string, username: string) =>
     `worklogAuthor = "${username}" AND worklogDate = "${date.replaceAll("-", "/")}"`;
 
+  const requestInit = (extra: RequestInit): RequestInit => {
+    const proxy = getProxy().trim();
+    if (!proxy) return extra;
+    return { ...extra, proxy } as RequestInit;
+  };
+
   return {
     async getMyself(cookie: string): Promise<JiraMyself> {
-      const response = await fetchFn(`${baseUrl}/rest/api/2/myself`, {
-        headers: authHeaders(cookie),
-        redirect: "manual",
-      });
+      const response = await fetchFn(
+        `${baseUrl}/rest/api/2/myself`,
+        requestInit({
+          headers: authHeaders(cookie),
+          redirect: "manual",
+        }),
+      );
       if (!response.ok) {
         throw new Error(`GET /myself falhou: HTTP ${response.status}`);
       }
@@ -91,10 +103,13 @@ export function createJiraClient(
     async probeSession(cookie: string): Promise<KeepaliveProbe> {
       let response: Response;
       try {
-        response = await fetchFn(`${baseUrl}/rest/api/2/myself`, {
-          headers: authHeaders(cookie),
-          redirect: "manual",
-        });
+        response = await fetchFn(
+          `${baseUrl}/rest/api/2/myself`,
+          requestInit({
+            headers: authHeaders(cookie),
+            redirect: "manual",
+          }),
+        );
       } catch {
         return "network-error";
       }
@@ -127,10 +142,13 @@ export function createJiraClient(
         const url =
           `${baseUrl}/rest/api/2/search?jql=${encodeURIComponent(jql)}` +
           `&fields=worklog&maxResults=${pageSize}&startAt=${startAt}`;
-        const response = await fetchFn(url, {
-          headers: authHeaders(cookie),
-          redirect: "manual",
-        });
+        const response = await fetchFn(
+          url,
+          requestInit({
+            headers: authHeaders(cookie),
+            redirect: "manual",
+          }),
+        );
         if (!response.ok) {
           throw new Error(`JQL worklogDate falhou: HTTP ${response.status}`);
         }
@@ -167,16 +185,19 @@ export function createJiraClient(
       timeSpentSeconds: number,
     ): Promise<{ worklogId: number }> {
       const url = `${baseUrl}/rest/api/2/issue/${encodeURIComponent(issueKey)}/worklog?adjustEstimate=leave`;
-      const response = await fetchFn(url, {
-        method: "POST",
-        headers: writeHeaders(cookie),
-        redirect: "manual",
-        body: JSON.stringify({
-          comment: "",
-          started,
-          timeSpentSeconds,
+      const response = await fetchFn(
+        url,
+        requestInit({
+          method: "POST",
+          headers: writeHeaders(cookie),
+          redirect: "manual",
+          body: JSON.stringify({
+            comment: "",
+            started,
+            timeSpentSeconds,
+          }),
         }),
-      });
+      );
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
         throw new Error(

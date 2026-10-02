@@ -6,7 +6,7 @@ import type { Db } from "../core/db";
 import type { Applier } from "../core/applier";
 import type { Alerter } from "../core/alerter";
 import type { JiraClient } from "../core/jira";
-import { maskCookie } from "./auth";
+import { maskCookie, maskProxy, isMaskedProxy } from "./auth";
 
 export interface ServerDeps {
   db: Db;
@@ -69,7 +69,11 @@ export function createRoutes(deps: ServerDeps) {
     .get("/session", (): SessionInfo => db.getSessionInfo())
     .get("/settings", (): AppSettings => {
       const settings = db.getSettings();
-      return { ...settings, jiraCookie: maskCookie(settings.jiraCookie) };
+      return {
+        ...settings,
+        proxyUrl: maskProxy(settings.proxyUrl),
+        jiraCookie: maskCookie(settings.jiraCookie),
+      };
     })
     .put(
       "/settings",
@@ -78,23 +82,35 @@ export function createRoutes(deps: ServerDeps) {
           holidayIssueKey?: string;
           vacationIssueKey?: string;
           alertWebhookUrl?: string;
+          proxyUrl?: string;
           jiraCookie?: string;
         } = {};
         if (body.holidayIssueKey !== undefined) patch.holidayIssueKey = body.holidayIssueKey;
         if (body.vacationIssueKey !== undefined) patch.vacationIssueKey = body.vacationIssueKey;
         if (body.alertWebhookUrl !== undefined) patch.alertWebhookUrl = body.alertWebhookUrl;
+        if (body.proxyUrl !== undefined) {
+          const trimmed = body.proxyUrl.trim();
+          if (!isMaskedProxy(trimmed)) {
+            patch.proxyUrl = trimmed;
+          }
+        }
         if (body.jiraCookie !== undefined && body.jiraCookie.trim().length > 0) {
           patch.jiraCookie = body.jiraCookie.trim();
         }
         db.updateSettings(patch);
         const settings = db.getSettings();
-        return { ...settings, jiraCookie: maskCookie(settings.jiraCookie) };
+        return {
+          ...settings,
+          proxyUrl: maskProxy(settings.proxyUrl),
+          jiraCookie: maskCookie(settings.jiraCookie),
+        };
       },
       {
         body: t.Object({
           holidayIssueKey: t.Optional(t.String()),
           vacationIssueKey: t.Optional(t.String()),
           alertWebhookUrl: t.Optional(t.String()),
+          proxyUrl: t.Optional(t.String()),
           jiraCookie: t.Optional(t.String()),
         }),
       },

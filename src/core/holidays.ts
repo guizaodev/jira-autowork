@@ -1,3 +1,5 @@
+import type { ProxyProvider } from "./jira";
+
 export type HolidayScope = "nacional" | "estadual" | "municipal" | "facultativo";
 
 export type Holiday = {
@@ -123,9 +125,14 @@ export function normalizeDate(raw: string): string | null {
 async function fetchCsv(
   url: string,
   fetchFn: typeof fetch,
+  getProxy: ProxyProvider,
 ): Promise<string | null> {
   try {
-    const response = await fetchFn(url);
+    const proxy = getProxy().trim();
+    const response = await fetchFn(
+      url,
+      proxy ? ({ proxy } as RequestInit) : undefined,
+    );
     if (!response.ok) return null;
     return await response.text();
   } catch {
@@ -146,6 +153,7 @@ export function createHolidayStore(
   },
   fetchFn: typeof fetch = fetch,
   baseUrl = HOLIDAY_BASE_URL,
+  getProxy: ProxyProvider = () => "",
 ): HolidayStore {
   const memory = new Map<number, HolidaySet>();
 
@@ -171,10 +179,10 @@ export function createHolidayStore(
       if (cached) return cached;
 
       const results = await Promise.all([
-        fetchCsv(`${baseUrl}/nacional/csv/${year}.csv`, fetchFn),
-        fetchCsv(`${baseUrl}/estadual/csv/${year}.csv`, fetchFn),
-        fetchCsv(`${baseUrl}/municipal/csv/${year}.csv`, fetchFn),
-        fetchCsv(`${baseUrl}/facultativo/csv/${year}.csv`, fetchFn),
+        fetchCsv(`${baseUrl}/nacional/csv/${year}.csv`, fetchFn, getProxy),
+        fetchCsv(`${baseUrl}/estadual/csv/${year}.csv`, fetchFn, getProxy),
+        fetchCsv(`${baseUrl}/municipal/csv/${year}.csv`, fetchFn, getProxy),
+        fetchCsv(`${baseUrl}/facultativo/csv/${year}.csv`, fetchFn, getProxy),
       ]);
       const [nacionalCsv, estadualCsv, municipalCsv, facultativoCsv] = results;
 

@@ -61,6 +61,7 @@ export type SettingsPatch = {
   holidayIssueKey?: string;
   vacationIssueKey?: string;
   alertWebhookUrl?: string;
+  proxyUrl?: string;
   jiraCookie?: string;
 };
 
@@ -195,6 +196,7 @@ export function createDb(dbPath: string): Db {
         holidayIssueKey: map.get("holiday_issue_key") ?? "",
         vacationIssueKey: map.get("vacation_issue_key") ?? "",
         alertWebhookUrl: map.get("alert_webhook_url") ?? "",
+        proxyUrl: map.get("proxy_url") ?? "",
         jiraCookie: map.get("jira_cookie") ?? "",
       };
     },
@@ -203,6 +205,7 @@ export function createDb(dbPath: string): Db {
         ["holiday_issue_key", patch.holidayIssueKey],
         ["vacation_issue_key", patch.vacationIssueKey],
         ["alert_webhook_url", patch.alertWebhookUrl],
+        ["proxy_url", patch.proxyUrl],
         ["jira_cookie", patch.jiraCookie],
       ];
       for (const [key, value] of keys) {
@@ -373,6 +376,7 @@ function seed(sqlite: Database): void {
   seedSetting("holiday_issue_key", "");
   seedSetting("vacation_issue_key", "");
   seedSetting("alert_webhook_url", "");
+  seedSetting("proxy_url", "");
   const envCookie = process.env.JIRA_COOKIE ?? "";
   seedSetting("jira_cookie", envCookie);
 }

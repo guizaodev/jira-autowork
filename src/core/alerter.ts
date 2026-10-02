@@ -1,5 +1,5 @@
 import type { Db } from "./db";
-import type { JiraClient, KeepaliveProbe } from "./jira";
+import type { JiraClient, KeepaliveProbe, ProxyProvider } from "./jira";
 import type { SessionStatus } from "../shared/contract";
 
 export type AlertPayload = {
@@ -18,9 +18,11 @@ export function createAlerter(deps: {
   jira: JiraClient;
   fetchFn?: typeof fetch;
   now?: () => Date;
+  getProxy?: ProxyProvider;
 }): Alerter {
   const { db, jira } = deps;
   const fetchFn = deps.fetchFn ?? fetch;
+  const getProxy = deps.getProxy ?? (() => "");
   const now = deps.now ?? (() => new Date());
 
   async function sendAlert(payload: AlertPayload): Promise<void> {
@@ -31,15 +33,20 @@ export function createAlerter(deps: {
       return;
     }
     try {
-      const response = await fetchFn(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: payload.text,
-          severity: payload.severity,
-          timestamp: payload.timestamp,
-        }),
-      });
+      const proxy = getProxy().trim();
+      const response = await fetchFn(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: payload.text,
+            severity: payload.severity,
+            timestamp: payload.timestamp,
+          }),
+          ...(proxy ? { proxy } : {}),
+        } as RequestInit,
+      );
       if (!response.ok) {
         db.addLog(
           "error",

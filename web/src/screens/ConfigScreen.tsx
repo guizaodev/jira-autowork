@@ -7,6 +7,7 @@ interface FormState {
   holidayIssueKey: string;
   vacationIssueKey: string;
   alertWebhookUrl: string;
+  proxyUrl: string;
   jiraCookie: string;
 }
 
@@ -14,6 +15,7 @@ const emptyForm: FormState = {
   holidayIssueKey: "",
   vacationIssueKey: "",
   alertWebhookUrl: "",
+  proxyUrl: "",
   jiraCookie: "",
 };
 
@@ -32,6 +34,7 @@ export function ConfigScreen() {
         holidayIssueKey: data.holidayIssueKey,
         vacationIssueKey: data.vacationIssueKey,
         alertWebhookUrl: data.alertWebhookUrl,
+        proxyUrl: data.proxyUrl,
         jiraCookie: "",
       });
     }
@@ -51,6 +54,7 @@ export function ConfigScreen() {
         holidayIssueKey: form.holidayIssueKey.trim(),
         vacationIssueKey: form.vacationIssueKey.trim(),
         alertWebhookUrl: form.alertWebhookUrl.trim(),
+        proxyUrl: form.proxyUrl.trim(),
         ...(form.jiraCookie.trim().length > 0 ? { jiraCookie: form.jiraCookie.trim() } : {}),
       });
       setForm((prev) => ({ ...prev, jiraCookie: "" }));
@@ -112,6 +116,18 @@ export function ConfigScreen() {
                 onChange={(event) => update({ alertWebhookUrl: event.target.value })}
               />
             </Field>
+            <div className="flex flex-col gap-1">
+              <Field label="Proxy HTTP">
+                <input
+                  type="text"
+                  value={form.proxyUrl}
+                  placeholder="http://usuario:senha@proxy.empresa.com:8080"
+                  className={inputClass}
+                  onChange={(event) => update({ proxyUrl: event.target.value })}
+                />
+              </Field>
+              <span className="text-xs text-slate-500">vazio = conexão direta</span>
+            </div>
             <Field label="Cookie do Jira (deixe vazio para manter)">
               <input
                 type="password"

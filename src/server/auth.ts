@@ -43,3 +43,38 @@ export function verifySessionToken(
 export function maskCookie(cookie: string): string {
   return cookie.trim().length > 0 ? "••••••••" : "";
 }
+
+export const PROXY_MASK = "***:***@";
+
+export function maskProxy(proxyUrl: string): string {
+  const trimmed = proxyUrl.trim();
+  if (!trimmed) return "";
+  const schemeEnd = trimmed.indexOf("://");
+  if (schemeEnd >= 0) {
+    try {
+      const url = new URL(trimmed);
+      if (!url.username && !url.password) return trimmed;
+      const port = url.port ? `:${url.port}` : "";
+      return `${url.protocol}//${PROXY_MASK}${url.hostname}${port}`;
+    } catch {
+      return maskStructural(trimmed, schemeEnd);
+    }
+  }
+  return maskStructural(trimmed, -1);
+}
+
+function maskStructural(trimmed: string, schemeEnd: number): string {
+  const at = trimmed.lastIndexOf("@");
+  if (at < 0) return trimmed;
+  const scheme = schemeEnd >= 0 ? trimmed.slice(0, schemeEnd + 3) : "";
+  return `${scheme}${PROXY_MASK}${trimmed.slice(at + 1)}`;
+}
+
+export function isMaskedProxy(proxyUrl: string): boolean {
+  const trimmed = proxyUrl.trim();
+  if (!trimmed.includes(PROXY_MASK)) return false;
+  const schemeEnd = trimmed.indexOf("://");
+  const rest = schemeEnd >= 0 ? trimmed.slice(schemeEnd + 3) : trimmed;
+  const at = rest.lastIndexOf("@");
+  return at >= 0 && rest.slice(0, at + 1) === PROXY_MASK;
+}

@@ -30,13 +30,14 @@ Stack: **Bun 1.4 + TypeScript strict** · Backend **Elysia** · Painel **React 1
     - CSV: `data dd/mm/aaaa | nome | ESCOPO | descrição | UF | IBGE` — **parse tolerante** (separador `;` ou `,`)
     - Cache em tabela `holidays_cache(ano PK, payload JSON)`, refresh no boot + 1º dia do mês. Falha de rede → usa cache; sem cache → alerta + dia tratado como workday (fail-open com warn).
 11. Horário de verão: Brasil não tem mais DST, mas use `Intl` p/ formatar `-0300` a partir da data local — não hardcode além do offset calculado.
+12. Proxy HTTP corporativo: setting `proxy_url` (`http://[user]:[pass]@[host]:[port]`, vazio = sem proxy) injetado em todo fetch de saída (Jira, CSVs de feriados, webhook de alerta) via `init.proxy` do Bun. Lido dinamicamente a cada request — mudança no painel vale sem restart. `GET /api/settings` devolve `proxyUrl` mascarado (`http://***:***@host:port`) quando há credenciais; `PUT` com valor mascarado preserva o atual e string vazia limpa.
 
 ## Banco (bun:sqlite, arquivo `/data/jira-autowork.db` ou `./data/dev.db` em dev)
 Tabelas: `settings(k TEXT PK, v TEXT)` · `monthly_tasks(month TEXT PK, issue_key TEXT)` ·
 `vacation_periods(id INTEGER PK AUTOINCREMENT, start_date, end_date, note)` ·
 `history(id PK, date TEXT UNIQUE, day_kind, issue_key, worklog_id INTEGER, time_spent_seconds, status, detail, created_at)` ·
 `logs(id PK, level, message, created_at)` · `holidays_cache(year INTEGER PK, payload TEXT)`.
-WAL mode. Seed: settings default (holiday/vacation issue vazias, webhook vazio, cookie de env `JIRA_COOKIE` se existir).
+WAL mode. Seed: settings default (holiday/vacation issue vazias, webhook vazio, proxy vazio, cookie de env `JIRA_COOKIE` se existir).
 
 ## Layout
 ```
@@ -48,7 +49,7 @@ tests/        *.test.ts (bun test)
 ```
 
 ## Painel web (React + Tailwind v4)
-Telas: Tasks do mês (CRUD) · Task feriado/férias (em Config) · Férias CRUD · Config (cookie, webhook, status sessão, testar conexão) · Histórico · Logs · Rodar agora (mostra RunNowResult por dia).
+Telas: Tasks do mês (CRUD) · Task feriado/férias (em Config) · Férias CRUD · Config (cookie, webhook, proxy HTTP corporativo, status sessão, testar conexão) · Histórico · Logs · Rodar agora (mostra RunNowResult por dia).
 Auth: login simples com `PANEL_PASSWORD` (env) → cookie de sessão assinado (hmac sha256, segredo derivado da senha). Todas rotas `/api/*` (exceto /api/login) exigem sessão.
 
 ## Qualidade

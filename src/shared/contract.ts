@@ -21,6 +21,7 @@ export interface AppSettings {
   holidayIssueKey: string;
   vacationIssueKey: string;
   alertWebhookUrl: string;
+  proxyUrl: string; // http://[user]:[pass]@[host]:[port] — vazio = sem proxy
   jiraCookie: string; // mascarado nas respostas de leitura
 }
 
@@ -74,9 +75,10 @@ export interface RunNowResult {
 // POST /api/logout -> 204
 
 // GET  /api/session -> SessionInfo
-// GET  /api/settings -> AppSettings (cookie mascarado)
-// PUT  /api/settings { holidayIssueKey, vacationIssueKey, alertWebhookUrl, jiraCookie? }
+// GET  /api/settings -> AppSettings (jiraCookie e proxyUrl mascarados quando têm credenciais)
+// PUT  /api/settings { holidayIssueKey, vacationIssueKey, alertWebhookUrl, proxyUrl?, jiraCookie? }
 //     jiraCookie opcional: se ausente/vazio, mantém o atual
+//     proxyUrl opcional: trim; string vazia limpa o proxy; valor mascarado (***:***@) mantém o atual
 
 // GET  /api/monthly-tasks -> MonthlyTask[]
 // PUT  /api/monthly-tasks { month, issueKey } (upsert)
