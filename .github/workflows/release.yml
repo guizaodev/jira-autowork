@@ -25,7 +25,7 @@ jobs:
           STAGING="jira-autowork-${VERSION}"
           mkdir -p "/tmp/${STAGING}"
           git archive --format=tar HEAD | tar -x -C "/tmp/${STAGING}"
-          tar --use-compress-program=zstd -T0 -cf "release/${STAGING}.tar.zst" -C /tmp "${STAGING}"
+          tar --use-compress-program="zstd -T0" -cf "release/${STAGING}.tar.zst" -C /tmp "${STAGING}"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Upload artifact
