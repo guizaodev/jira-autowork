@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar zstd
+        run: sudo apt-get update && sudo apt-get install -y zstd
+
+      - name: Gerar tar.zst
+        run: |
+          mkdir -p release
+          VERSION="$(git log -1 --format=%cd --date=format:%Y%m%d)-$(git rev-parse --short HEAD)"
+          STAGING="jira-autowork-${VERSION}"
+          mkdir -p "/tmp/${STAGING}"
+          git archive --format=tar HEAD | tar -x -C "/tmp/${STAGING}"
+          tar --use-compress-program=zstd -T0 -cf "release/${STAGING}.tar.zst" -C /tmp "${STAGING}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jira-autowork-${{ env.VERSION }}
+          path: release/*.tar.zst
+          retention-days: 90
+
+      - name: Criar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ env.VERSION }}
+          name: jira-autowork ${{ env.VERSION }}
+          body: |
+            Build automático do branch main.
+
+            ## Conteúdo
+            Código-fonte completo (sem node_modules) para rodar com Bun:
+
+            ```bash
+            tar --zstd -xf jira-autowork-${{ env.VERSION }}.tar.zst
+            cd jira-autowork-${{ env.VERSION }}
+            bun install
+            cp .env.example .env
+            bun run build:all
+            docker compose up -d --build
+            ```
+
+            Ou gerar a imagem Docker direto (o Dockerfile faz todo o build):
+            ```bash
+            tar --zstd -xf jira-autowork-${{ env.VERSION }}.tar.zst
+            cd jira-autowork-${{ env.VERSION }}
+            docker compose up -d --build
+            ```
+          files: release/*.tar.zst
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
